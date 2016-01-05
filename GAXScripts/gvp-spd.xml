@@ -1,0 +1,157 @@
+<solutionDefinition version="2.0.0" xmlns="http://genesyslab.com/gax/asd" xmlns:os="http://genesyslab.com/gax/asd/os" xmlns:cfg="http://genesyslab.com/gax/asd/cfg" xmlns:fileio="http://genesyslab.com/gax/asd/fileio" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://genesyslab.com/gax/asd asd.xsd http://genesyslab.com/gax/asd/os os.xsd http://genesyslab.com/gax/asd/cfg cfg.xsd http://genesyslab.com/gax/asd/fileio fileio.xsd">
+
+	<name>Genesys Voice Platform Service for Hosted Provider Edition</name>
+	<version>8.1.2-SNAPSHOT</version>
+	<description>Deploys the Genesys Voice Platform Service for Genesys Hosted Provider Edition</description>
+	<summary>Deploys the Genesys Voice Platform Service for Genesys Hosted Provider Edition</summary>
+	<deploymentkey>object:cfgtenant:${TENANT.dbid}</deploymentkey>
+	<profile name="install" incremental="false">
+		<dialog step="Tenant Selection">
+			
+			<input name="TENANT" 
+				title="Tenant Name" hidden="false" 
+				default="" type="selectOne" required="false">
+				<description>Please enter the tenant name</description>
+				<objectselect>
+					<filter value="CfgTenant" name="type"/>
+				</objectselect>
+			</input>
+
+		</dialog>
+
+		<dialog step="Framework Credentials">
+
+			
+			<input name="CMEUser" 
+				title="Management Framework User Account" hidden="false" default="default" type="string">
+				<description>Please enter the Genesys Management Framework username with ability to create applications and objects</description>
+			</input>
+			<input name="CMEPassword" 
+				title="Management Framework User Password" hidden="false" default="" type="password">
+				<description>Please enter the Genesys Management Framework user password</description>
+			</input> 
+			
+		</dialog>
+		<execution step="deploy"> 
+
+			<!-- The hpe_deploy.sh is expected to be located on GAX host -->
+			<script>
+				var GAX_APP = 'GAX_m_1' ; 
+			</script>
+
+			<cfg:readObject name="${GAX_APP}" type="CfgApplication" result="gaxApp"/>
+			<cfg:readObject dbid="${gaxApp.hostdbid}" result="gaxHost" type="CfgHost"/>
+
+			<script>
+				try {
+					os.verifyGDA({
+					"host": (_lineno(57), gaxHost.name),
+					"lineno": "57",
+					"asAdmin": "false"
+					});
+				} catch (e) {
+					GAX_APP = 'GAX_m_2' ;
+			        
+					gaxApp = cfg.readObject({
+						"lineno": "57",
+						"name": (_lineno(57), GAX_APP),
+						"result": "gaxApp",
+						"type": "CfgApplication"
+						});
+		            
+					gaxHost = cfg.readObject({
+						"dbid": (_lineno(42), gaxApp.hostdbid),
+						"lineno": "42",
+						"result": "gaxHost",
+						"type": "CfgHost"
+						});
+			    	
+					os.verifyGDA({
+					"host": (_lineno(57), gaxHost.name),
+					"lineno": "57",
+					"asAdmin": "false"
+					});
+				}
+			</script>
+			
+			<script>
+				var CME_APP = 'confserv' ; 
+			</script>
+			<cfg:readObject name="${CME_APP}" type="CfgApplication" result="CME_APP"/>
+			<cfg:readObject dbid="${CME_APP.hostdbid}" result="CMEHost" type="CfgHost"/>
+
+
+			<script>
+
+				function getKVListValue(array, section, name) {
+				for (kvi = 0; kvi &lt; array.length ; kvi++) {
+				if (array[kvi].section === section &amp;&amp; array[kvi].key === name) 
+				{
+				return array[kvi].value;
+				}
+				}
+				return '';
+				}
+
+				function getPortById (portinfos, name)
+				{
+				   log ('calling getPortById ' + portinfos.portinfo.length);
+				   for(pi = 0; pi &lt; portinfos.portinfo.length; pi++) {
+					if (portinfos.portinfo[pi].id === name)
+					{
+					    return portinfos.portinfo[pi].port;
+					}
+					log ('port info is ' + portinfos.portinfo[pi].id + ' number ' + portinfos.portinfo[pi].port);
+				    }
+				    return '';
+				}
+
+				IpPath = getKVListValue(gaxApp.options.property, 'asd', 'repository_path');
+			
+
+				CMEPort = getPortById(CME_APP.portinfos, 'default');
+
+				Action = 'deploy_gvp';
+
+				var hpecmd = '/home/genesys/GCTI/Scripts/install-scripts/hpe_deploy.sh ';
+				if (Action &amp;&amp; Action.length > 0)
+				{
+				hpecmd += ' -action ' + Action;
+				}
+				if (TENANT.name &amp;&amp; TENANT.name.length > 0)
+				{
+				hpecmd += ' -tenant ' + TENANT.name;
+				}
+				
+				
+				if (IpPath &amp;&amp; IpPath.length > 0)
+				{
+				hpecmd += ' -ip_path ' + IpPath;
+				}
+				if (CMEHost.name &amp;&amp; CMEHost.name.length > 0)
+				{
+				hpecmd += ' -host ' + CMEHost.name;
+				}
+				if (CMEPort &amp;&amp; CMEPort.length > 0)
+				{
+				hpecmd += ' -port ' + CMEPort;
+				}
+				if (CMEUser &amp;&amp; CMEUser.length > 0)
+				{
+				hpecmd += ' -user ' + CMEUser;
+				}
+				if (CMEPassword &amp;&amp; CMEPassword.length > 0)
+				{
+				hpecmd += ' -password ' + CMEPassword;
+				}
+				log ('Command to execute :' + hpecmd);
+
+			</script>
+
+
+			<os:execShellCmd host="${gaxHost.name}" cmd="${hpecmd}" result="ResultVar"/>
+			<notice msg="${ResultVar}"/>
+		</execution>
+	</profile>
+
+</solutionDefinition>
